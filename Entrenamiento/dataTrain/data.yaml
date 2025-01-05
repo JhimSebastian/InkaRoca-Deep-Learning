@@ -1,0 +1,13 @@
+train: /content/drive/MyDrive/InkaRocaML/dataTrain/train
+val: /content/drive/MyDrive/InkaRocaML/dataTrain/val
+test: /content/drive/MyDrive/InkaRocaML/dataTrain/test
+
+nc: 4
+names: ['Llavero', 'Chompa', 'Guante', 'Gorro']
+
+roboflow:
+  workspace: open-projects
+  project: detect_-handicrafts
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/open-projects/detect_-handicrafts/dataset/1
