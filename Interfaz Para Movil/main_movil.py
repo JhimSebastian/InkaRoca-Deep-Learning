@@ -9,7 +9,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Cargar el modelo entrenado
-model = YOLO("./modelo_entrenado/best110.pt")
+model = YOLO("./models_movil/best110.pt")
 
 class CamaraApp(App):
     def build(self):
