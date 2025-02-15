@@ -1,5 +1,5 @@
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
@@ -8,17 +8,16 @@ import numpy as np
 from ultralytics import YOLO
 import os
 
-# Ruta corregida del modelo
-ruta_modelo = "./Interfaz Para Movil/models_movil/best110.pt"
-
+# Ruta del modelo
+ruta_modelo = "D:/InkaRoca-Deep-Learning/Interfaz Para Movil/models_movil/best110.pt"
 if not os.path.exists(ruta_modelo):
     raise FileNotFoundError(f"El modelo no se encontró en: {ruta_modelo}")
 
-# Cargar el modelo entrenado
+# Cargar el modelo YOLO
 model = YOLO(ruta_modelo)
 
-# Diccionario de rutas de imágenes
-ruta_imagenes = "D:/InkaRoca-Deep-Learning/Interfaz Para Monitores/img/interface/"
+# Rutas de imágenes
+ruta_imagenes = "D:/InkaRoca-Deep-Learning/Interfaz Para Movil/img_movil/"
 imagenes = {
     0: {"producto": ruta_imagenes + "llavero.png", "info": ruta_imagenes + "llavero_inf.png"},
     1: {"producto": ruta_imagenes + "chompa.png", "info": ruta_imagenes + "chompa_inf.png"},
@@ -28,56 +27,54 @@ imagenes = {
 
 class CamaraApp(App):
     def build(self):
-        # Diseño de la interfaz
-        self.layout = BoxLayout(orientation='vertical')
-
-        # Sección de la cámara (mitad superior)
-        self.camera_view = Image(size_hint=(1, 0.6))
+        # Layout principal con fondo
+        self.layout = RelativeLayout()
+        
+        # Imagen de fondo
+        self.background = Image(source=ruta_imagenes + "background.png", allow_stretch=True, keep_ratio=False)
+        self.layout.add_widget(self.background)
+        
+        # Vista de cámara (cuadro superior grande)
+        self.camera_view = Image(size_hint=(0.8, 0.4), pos_hint={"center_x": 0.5, "top": 0.85})
         self.layout.add_widget(self.camera_view)
-
-        # Sección de imágenes detectadas
-        self.layout_images = BoxLayout(orientation='horizontal', size_hint=(1, 0.4))
-        self.image_producto = Image(size_hint=(0.5, 1))
-        self.image_info = Image(size_hint=(0.5, 1))
-        self.layout_images.add_widget(self.image_producto)
-        self.layout_images.add_widget(self.image_info)
-        self.layout.add_widget(self.layout_images)
-
+        
+        # Imagen de producto detectado (abajo izquierda)
+        self.image_producto = Image(size_hint=(0.35, 0.35), pos_hint={"x": 0.1, "y": 0.1})
+        self.layout.add_widget(self.image_producto)
+        
+        # Imagen de información (abajo derecha)
+        self.image_info = Image(size_hint=(0.35, 0.35), pos_hint={"right": 0.9, "y": 0.1})
+        self.layout.add_widget(self.image_info)
+        
         # Iniciar la cámara
         self.cap = cv2.VideoCapture(0)
-        Clock.schedule_interval(self.update, 1.0 / 30.0)  # Actualizar cada 1/30 segundos
-
+        Clock.schedule_interval(self.update, 1.0 / 30.0)
+        
         return self.layout
 
     def update(self, dt):
-        # Capturar frame de la cámara
         ret, frame = self.cap.read()
         if ret:
-            # Procesar el frame con el modelo YOLO
             results = model(frame, stream=True, verbose=False)
-
-            # Dibujar la detección en el frame
+            
             for res in results:
                 cajas = res.boxes
                 for caja in cajas:
                     x1, y1, x2, y2 = [int(val) for val in caja.xyxy[0]]
                     clase = int(caja.cls[0])
-
+                    
                     if clase in imagenes:
                         self.image_producto.source = imagenes[clase]["producto"]
                         self.image_info.source = imagenes[clase]["info"]
-
-                    # Dibujar la caja en el frame
+                    
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-            # Convertir el frame a textura para mostrarlo en Kivy
+            
             buf = cv2.flip(frame, 0).tobytes()
             texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
             texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
             self.camera_view.texture = texture
 
     def on_stop(self):
-        # Liberar la cámara al cerrar la aplicación
         self.cap.release()
 
 if __name__ == '__main__':
