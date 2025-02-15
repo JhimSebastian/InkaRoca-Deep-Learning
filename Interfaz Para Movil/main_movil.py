@@ -69,7 +69,6 @@ class CamaraApp(App):
         # Liberar la cámara al cerrar la aplicación
         self.cap.release()
 
-
 if __name__ == '__main__':
     CamaraApp().run()
     
