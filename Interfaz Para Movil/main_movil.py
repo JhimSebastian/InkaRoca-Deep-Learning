@@ -7,9 +7,16 @@ from kivy.graphics.texture import Texture
 import cv2
 import numpy as np
 from ultralytics import YOLO
+import os
+
+# Ruta corregida del modelo
+ruta_modelo = "./Interfaz Para Movil/models_movil/best110.pt"
+
+if not os.path.exists(ruta_modelo):
+    raise FileNotFoundError(f"El modelo no se encontró en: {ruta_modelo}")
 
 # Cargar el modelo entrenado
-model = YOLO("./models_movil/best110.pt")
+model = YOLO(ruta_modelo)
 
 class CamaraApp(App):
     def build(self):
