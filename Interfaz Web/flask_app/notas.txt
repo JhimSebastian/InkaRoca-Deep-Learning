@@ -1,6 +1,10 @@
 
-- Ejecutar proyecto en una temrinal
+- Ejecutar proyecto en una temrinal (ir a la ruta)
 python app.py
 
-- otra temrinal
+- en otra temrinal ejecutar:
 .\ngrok http 5000
+
+
+copiar el link que sale de ngrok, y ponerlo en cualquier 
+dispositivo movil,(google, firefox, edge, brave, etc)
