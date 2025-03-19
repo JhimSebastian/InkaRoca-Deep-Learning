@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+    <title>Detección en Tiempo Real</title>
+    <style>
+        body, html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+        }
+
+        .container {
+            width: 358px;
+            height: 735px;
+            position: relative;
+            background: url("{{ url_for('static', filename='img_movil/fondo3.jpg') }}") no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .video-container {
+            width: 285px;
+            height: 270px;
+            border: 3px solid white;
+            margin-top: 110px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .info-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            width: 100%;
+            margin-top: 95px;
+            padding: 10px;
+        }
+
+        .info-container img {
+            width: 120px;
+            height: auto;
+            border: 2px solid white;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="info-container">
+            <img id="producto" src="" alt="Producto Detectado">
+            <img id="info" src="" alt="Información del Producto">
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        async function verificarPermisos() {
+            try {
+                const permisos = await navigator.permissions.query({ name: "camera" });
+                console.log("📜 Estado de permisos:", permisos.state);
+
+                if (permisos.state === "denied") {
+                    alert("⚠️ No tienes permisos para usar la cámara. Actívalos en la configuración del navegador.");
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.warn("⚠️ No se pudo verificar permisos, intentando acceso directo...");
+                return true; 
+            }
+        }
+
+        async function iniciarCamara() {
+            if (!(await verificarPermisos())) return;
+
+            try {
+                console.log("🔍 Intentando acceder a la cámara trasera...");
+                let stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { exact: "environment" }, // Cámara trasera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                console.log("✅ Cámara trasera activada correctamente.");
+                video.srcObject = stream;
+                video.onloadedmetadata = () => ajustarCanvas();
+            } catch (error) {
+                console.error("🚨 Error accediendo a la cámara trasera:", error);
+
+                if (error.name === "OverconstrainedError" || error.name === "NotReadableError") {
+                    console.warn("🔄 Intentando con cámara frontal...");
+                    iniciarCamaraAlternativa();
+                } else {
+                    alert("⚠️ No se pudo acceder a la cámara. Revisa los permisos o prueba otro navegador.");
+                }
+            }
+        }
+
+        async function iniciarCamaraAlternativa() {
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" } // Cámara frontal
+                });
+
+                console.log("✅ Cámara frontal activada.");
+                video.srcObject = stream;
+                video.onloadedmetadata = () => ajustarCanvas();
+            } catch (error) {
+                console.error("🚨 Ninguna cámara disponible:", error);
+                alert("⚠️ Ninguna cámara disponible. Verifica la configuración del navegador.");
+            }
+        }
+
+        function ajustarCanvas() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        }
+
+        function capturarYEnviar() {
+            if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+            ajustarCanvas();
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            fetch('/deteccion', {
+                method: 'POST',
+                body: JSON.stringify({ image: imageData }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                data.detecciones.forEach(det => {
+                    ctx.strokeStyle = 'lime';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(det.x1, det.y1, det.x2 - det.x1, det.y2 - det.y1);
+                    ctx.fillStyle = 'red';
+                    ctx.font = '16px Arial';
+
+                    const nombresClases = {
+                        0: "Llavero",
+                        1: "Chompa",
+                        2: "Guantes",
+                        3: "Gorro"
+                    };
+                    ctx.fillText(nombresClases[det.clase] || `Clase ${det.clase}`, det.x1, det.y1 - 5);
+
+                    document.getElementById('producto').src = det.producto ? `/static/${det.producto}` : '';
+                    document.getElementById('info').src = det.info ? `/static/${det.info}` : '';
+                });
+            })
+            .catch(error => console.error("Error en detección:", error));
+        }
+
+        iniciarCamara();
+        setInterval(capturarYEnviar, 500);
+    </script>
+</body>
+</html>
