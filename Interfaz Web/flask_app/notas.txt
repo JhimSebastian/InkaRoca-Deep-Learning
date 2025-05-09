@@ -3,7 +3,7 @@
 python app.py
 
 - en otra temrinal ejecutar:
-.\ngrok http 5000
+.\ngrok.exe http 5000
 
 
 copiar el link que sale de ngrok, y ponerlo en cualquier 
